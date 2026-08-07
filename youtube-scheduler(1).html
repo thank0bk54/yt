@@ -205,7 +205,42 @@
   let desiredPlaying = false; // last commanded state
   let hasSource = false;
 
-  // ---------- URL parsing ----------
+  // ---------- Persistence (localStorage) ----------
+  const STORAGE_KEY = 'yt_scheduler_state_v1';
+
+  function saveState(){
+    try{
+      const state = {
+        url: $('urlInput').value,
+        loop: $('loopEnabled').checked,
+        slotsEnabled: $('slotsEnabled').checked,
+        slots: slots.map(s => ({start: s.start, end: s.end}))
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch(e){ /* localStorage không khả dụng, bỏ qua */ }
+  }
+
+  function loadState(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch(e){ return null; }
+  }
+
+  function restoreState(){
+    const state = loadState();
+    if (!state) return;
+    if (state.url) $('urlInput').value = state.url;
+    if (typeof state.loop === 'boolean') $('loopEnabled').checked = state.loop;
+    if (typeof state.slotsEnabled === 'boolean') $('slotsEnabled').checked = state.slotsEnabled;
+    if (Array.isArray(state.slots)){
+      slots = state.slots.map(s => ({id: slotIdCounter++, start: s.start, end: s.end}));
+    }
+    renderSlots();
+    renderTimeline();
+    if (state.url) $('loadBtn').click();
+  }
   function parseYouTube(url){
     const vMatch = url.match(/(?:v=|youtu\.be\/|shorts\/|embed\/)([a-zA-Z0-9_-]{11})/);
     const lMatch = url.match(/[?&]list=([a-zA-Z0-9_-]+)/);
@@ -248,6 +283,7 @@
     hasSource = true;
     $('stSource').textContent = videoId ? ('video ' + videoId + (listId ? ' (+ playlist)' : '')) : ('playlist ' + listId);
     updateTransportEnabled();
+    saveState();
   });
 
   function updateTransportEnabled(){
@@ -297,6 +333,7 @@
     if (!start || !end || start === end) return;
     slots.push({ id: slotIdCounter++, start, end });
     renderSlots();
+    saveState();
   });
 
   function renderSlots(){
@@ -320,12 +357,13 @@
         slots = slots.filter(s => s.id !== slot.id);
         renderSlots();
         renderTimeline();
+        saveState();
       });
       list.appendChild(row);
     });
     $('stSlots').textContent = $('slotsEnabled').checked ? (slots.length + ' khung, bật') : 'tắt';
   }
-  $('slotsEnabled').addEventListener('change', () => { renderSlots(); renderTimeline(); });
+  $('slotsEnabled').addEventListener('change', () => { renderSlots(); renderTimeline(); saveState(); });
 
   // ---------- Timeline (signature visual) ----------
   function renderTimeline(){
@@ -442,9 +480,12 @@
     }
   }
 
+  $('loopEnabled').addEventListener('change', saveState);
+
   setInterval(masterTick, 1000);
   renderTimeline();
   renderSlots();
+  restoreState();
 })();
 </script>
 </body>
