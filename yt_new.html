@@ -322,8 +322,11 @@
     saveState();
   });
 
+  let previewing = false;
+
   function previewSlot(slot){
     loadIntoPlayer(slot.videoId, slot.listId, slot.loop);
+    previewing = true;
   }
 
   function renderSlots(){
@@ -485,11 +488,13 @@
     }
 
     if (!desired){
-      if (hasSource && currentKey){
-        // schedule window ended, stop playback but keep last frame visible
+      if (hasSource && currentPlaying && !previewing){
+        ytPause();
       }
       return;
     }
+
+    previewing = false;
 
     const key = sourceKey(desired.videoId, desired.listId);
     if (key !== currentKey){
